@@ -111,6 +111,9 @@ const selectedOption = ref(-1)
 const answers = ref([])
 
 onMounted(() => {
+  // 预加载所有字母发音
+  props.lesson.consonants.forEach(c => audio.preload(c.fullName || c.char))
+  props.lesson.words.forEach(w => audio.preload(w.thai))
   generateQuestions()
   // 自动播放第一题
   setTimeout(playQuestionAudio, 500)

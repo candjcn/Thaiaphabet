@@ -65,7 +65,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { audio } from '../engine/audio.js'
 
 const props = defineProps({ lesson: Object })
@@ -78,6 +78,13 @@ const allLetters = computed(() => {
   const consonants = props.lesson.consonants.map(c => ({ ...c, isVowel: false }))
   const vowels = (props.lesson.vowels || []).map(v => ({ ...v, isVowel: true }))
   return [...consonants, ...vowels]
+})
+
+// 预加载所有字母发音
+onMounted(() => {
+  allLetters.value.forEach(l => {
+    audio.preload(l.fullName || l.char)
+  })
 })
 
 function selectLetter(letter, index) {

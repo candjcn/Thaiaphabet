@@ -1,26 +1,47 @@
-// 音频引擎 - 使用 Web Speech API 合成泰语发音
-// 生产环境应替换为预录制的音频文件
+// 音频引擎 - 使用 Google Translate TTS 获取高质量泰语发音
+// 通过 <audio> 标签加载，无 CORS 限制
 
-let synth = null
+let currentAudio = null
 
-function getSynth() {
-  if (!synth && window.speechSynthesis) {
-    synth = window.speechSynthesis
-  }
-  return synth
+function getTTSUrl(text, lang = 'th') {
+  const encoded = encodeURIComponent(text)
+  return `https://translate.google.com/translate_tts?ie=UTF-8&tl=${lang}&client=tw-ob&q=${encoded}`
 }
 
 export const audio = {
-  // 使用 TTS 朗读泰语文本
-  speakThai(text, rate = 0.8) {
-    const s = getSynth()
-    if (!s) return
-    s.cancel()
+  // 使用 Google Translate TTS 朗读泰语文本
+  speakThai(text) {
+    if (!text) return
+    // 停止当前正在播放的音频
+    if (currentAudio) {
+      currentAudio.pause()
+      currentAudio = null
+    }
+    const a = new Audio(getTTSUrl(text))
+    a.playbackRate = 0.9
+    currentAudio = a
+    a.play().catch(() => {
+      // 如果 Google TTS 失败，回退到浏览器 TTS
+      this._fallbackSpeak(text)
+    })
+  },
+
+  // 浏览器 TTS 回退方案
+  _fallbackSpeak(text) {
+    const synth = window.speechSynthesis
+    if (!synth) return
+    synth.cancel()
     const utterance = new SpeechSynthesisUtterance(text)
     utterance.lang = 'th-TH'
-    utterance.rate = rate
-    utterance.pitch = 1
-    s.speak(utterance)
+    utterance.rate = 0.8
+    synth.speak(utterance)
+  },
+
+  // 预加载音频（用于提升响应速度）
+  preload(text) {
+    const a = new Audio()
+    a.preload = 'auto'
+    a.src = getTTSUrl(text)
   },
 
   // 播放音效（使用 AudioContext 生成简单音效）
