@@ -165,7 +165,7 @@ function playStrokeAnimation() {
   // 简单的笔顺动画：在 Canvas 上画出字母形状
   const char = currentLetter.value.char
   ctx.save()
-  ctx.font = '200px "Noto Sans Thai"'
+  ctx.font = '200px "IBM Plex Sans Thai Looped"'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
 

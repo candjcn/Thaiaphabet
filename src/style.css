@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 @theme {
-  --font-thai: 'Noto Sans Thai', sans-serif;
+  --font-thai: 'IBM Plex Sans Thai Looped', sans-serif;
   --font-cn: 'Noto Sans SC', system-ui, sans-serif;
   --color-primary: #6C63FF;
   --color-primary-light: #8B83FF;
