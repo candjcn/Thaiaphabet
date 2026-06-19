@@ -23,7 +23,10 @@
     <!-- Canvas 临摹区域 -->
     <div class="relative mx-auto" style="width: 300px; height: 300px;">
       <!-- 底层：半透明字母骨架 -->
-      <div class="absolute inset-0 flex items-center justify-center pointer-events-none" :style="{ opacity: showGuide ? 0.15 : 0 }">
+      <div
+        class="absolute inset-0 flex items-center justify-center pointer-events-none"
+        :style="{ opacity: showGuide && !animating ? 0.15 : 0 }"
+      >
         <span class="thai select-none" style="font-size: 14rem; line-height: 1;">
           {{ currentLetter.char }}
         </span>
@@ -35,6 +38,7 @@
         width="300"
         height="300"
         class="absolute inset-0 rounded-2xl border-2 border-gray-200 cursor-crosshair bg-white/80"
+        style="touch-action: none;"
         @pointerdown="startDraw"
         @pointermove="draw"
         @pointerup="endDraw"
@@ -43,15 +47,24 @@
     </div>
 
     <!-- 工具栏 -->
-    <div class="flex justify-center gap-3">
+    <div class="flex justify-center gap-3 flex-wrap">
       <button @click="clearCanvas" class="px-4 py-2 bg-gray-100 rounded-lg text-sm hover:bg-gray-200 transition">
         🗑️ 清除重写
       </button>
       <button @click="showGuide = !showGuide" class="px-4 py-2 bg-gray-100 rounded-lg text-sm hover:bg-gray-200 transition">
         {{ showGuide ? '👁️ 隐藏引导' : '👁️‍🗨️ 显示引导' }}
       </button>
-      <button @click="playStrokeAnimation" class="px-4 py-2 bg-purple-100 text-purple-700 rounded-lg text-sm hover:bg-purple-200 transition">
-        ▶️ 播放笔顺
+      <button
+        @click="playStrokeAnimation"
+        :disabled="animating"
+        :class="[
+          'px-4 py-2 rounded-lg text-sm transition',
+          animating
+            ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+            : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+        ]"
+      >
+        {{ animating ? '⏳ 播放中...' : '▶️ 播放笔顺' }}
       </button>
     </div>
 
@@ -92,8 +105,10 @@ const canvasRef = ref(null)
 const currentLetterIndex = ref(0)
 const showGuide = ref(true)
 const traced = ref(new Set())
+const animating = ref(false)
 let isDrawing = false
 let ctx = null
+let animationId = null
 
 const currentLetter = computed(() => props.lesson.consonants[currentLetterIndex.value])
 
@@ -103,6 +118,7 @@ onMounted(() => {
 })
 
 watch(currentLetterIndex, () => {
+  cancelAnimation()
   clearCanvas()
 })
 
@@ -123,6 +139,7 @@ function getPos(e) {
 }
 
 function startDraw(e) {
+  if (animating.value) return
   isDrawing = true
   const pos = getPos(e)
   ctx.beginPath()
@@ -131,7 +148,7 @@ function startDraw(e) {
 }
 
 function draw(e) {
-  if (!isDrawing) return
+  if (!isDrawing || animating.value) return
   const pos = getPos(e)
   ctx.lineTo(pos.x, pos.y)
   ctx.stroke()
@@ -148,10 +165,17 @@ function clearCanvas() {
   setupCanvas()
 }
 
+function cancelAnimation() {
+  if (animationId) {
+    cancelAnimationFrame(animationId)
+    animationId = null
+  }
+  animating.value = false
+}
+
 function markTraced() {
   traced.value.add(currentLetterIndex.value)
   clearCanvas()
-  // 自动跳到下一个未完成的字母
   for (let i = 0; i < props.lesson.consonants.length; i++) {
     if (!traced.value.has(i)) {
       currentLetterIndex.value = i
@@ -161,32 +185,146 @@ function markTraced() {
 }
 
 function playStrokeAnimation() {
+  if (animating.value) return
+  animating.value = true
   clearCanvas()
-  // 简单的笔顺动画：在 Canvas 上画出字母形状
-  const char = currentLetter.value.char
-  ctx.save()
-  ctx.font = '200px "IBM Plex Sans Thai Looped"'
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
 
-  // 用虚线渐进动画模拟笔顺
-  let dashOffset = 1000
-  const animate = () => {
-    ctx.clearRect(0, 0, 300, 300)
-    ctx.setLineDash([1000])
-    ctx.lineDashOffset = dashOffset
-    ctx.lineWidth = 2
-    ctx.strokeStyle = '#6C63FF'
-    ctx.strokeText(char, 150, 160)
-    dashOffset -= 15
-    if (dashOffset > -200) {
-      requestAnimationFrame(animate)
-    } else {
-      ctx.setLineDash([])
-      setupCanvas()
+  // 1. 将字母渲染到离屏 Canvas
+  const off = document.createElement('canvas')
+  off.width = 300
+  off.height = 300
+  const oc = off.getContext('2d')
+  oc.font = '200px "IBM Plex Sans Thai Looped"'
+  oc.textAlign = 'center'
+  oc.textBaseline = 'middle'
+  oc.fillStyle = '#6C63FF'
+  oc.fillText(currentLetter.value.char, 150, 160)
+
+  // 2. 提取字母骨架：按扫描线取每段笔画的中点
+  const imgData = oc.getImageData(0, 0, 300, 300)
+  const isChar = (x, y) => {
+    if (x < 0 || x >= 300 || y < 0 || y >= 300) return false
+    return imgData.data[(y * 300 + x) * 4 + 3] > 50
+  }
+
+  const skelPoints = []
+  for (let y = 0; y < 300; y += 2) {
+    let inRun = false
+    let runStart = 0
+    for (let x = 0; x <= 300; x++) {
+      const ic = x < 300 && isChar(x, y)
+      if (ic && !inRun) {
+        runStart = x
+        inRun = true
+      } else if (!ic && inRun) {
+        skelPoints.push({ x: Math.round((runStart + x - 1) / 2), y })
+        inRun = false
+      }
     }
   }
-  animate()
-  ctx.restore()
+
+  if (skelPoints.length === 0) {
+    animating.value = false
+    return
+  }
+
+  // 3. 用最近邻排序连成路径，从最顶部开始（หัว 所在位置）
+  let startIdx = 0
+  for (let i = 1; i < skelPoints.length; i++) {
+    if (skelPoints[i].y < skelPoints[startIdx].y ||
+        (skelPoints[i].y === skelPoints[startIdx].y && skelPoints[i].x > skelPoints[startIdx].x)) {
+      startIdx = i
+    }
+  }
+
+  const ordered = []
+  const remaining = new Array(skelPoints.length).fill(true)
+  let cur = startIdx
+  remaining[cur] = false
+  ordered.push(skelPoints[cur])
+
+  for (let n = 1; n < skelPoints.length; n++) {
+    let bestIdx = -1
+    let bestDist = Infinity
+    for (let i = 0; i < skelPoints.length; i++) {
+      if (!remaining[i]) continue
+      const dx = skelPoints[i].x - skelPoints[cur].x
+      const dy = skelPoints[i].y - skelPoints[cur].y
+      const d = dx * dx + dy * dy
+      if (d < bestDist) {
+        bestDist = d
+        bestIdx = i
+      }
+    }
+    if (bestIdx === -1) break
+    ordered.push(skelPoints[bestIdx])
+    remaining[bestIdx] = false
+    cur = bestIdx
+  }
+
+  // 4. 下采样到 ~150 帧
+  const targetFrames = 150
+  const step = Math.max(1, Math.floor(ordered.length / targetFrames))
+  const path = ordered.filter((_, i) => i % step === 0)
+
+  // 5. 动画：发光小球沿骨架滑动 + 逐步显露字母
+  let frame = 0
+
+  const animate = () => {
+    ctx.clearRect(0, 0, 300, 300)
+
+    // 底层：淡化的完整字母轮廓
+    ctx.globalAlpha = 0.08
+    ctx.drawImage(off, 0, 0)
+    ctx.globalAlpha = 1.0
+
+    // 用累积圆形剪切区域逐步显露字母
+    ctx.save()
+    ctx.beginPath()
+    for (let i = 0; i <= frame && i < path.length; i++) {
+      ctx.moveTo(path[i].x + 16, path[i].y)
+      ctx.arc(path[i].x, path[i].y, 16, 0, Math.PI * 2)
+    }
+    ctx.clip()
+    ctx.drawImage(off, 0, 0)
+    ctx.restore()
+
+    // 发光小球
+    if (frame < path.length) {
+      const p = path[frame]
+      // 外圈光晕
+      const grad = ctx.createRadialGradient(p.x, p.y, 2, p.x, p.y, 16)
+      grad.addColorStop(0, 'rgba(255, 215, 0, 0.9)')
+      grad.addColorStop(0.5, 'rgba(255, 215, 0, 0.3)')
+      grad.addColorStop(1, 'rgba(255, 215, 0, 0)')
+      ctx.beginPath()
+      ctx.arc(p.x, p.y, 16, 0, Math.PI * 2)
+      ctx.fillStyle = grad
+      ctx.fill()
+      // 内核白点
+      ctx.beginPath()
+      ctx.arc(p.x, p.y, 4, 0, Math.PI * 2)
+      ctx.fillStyle = '#FFD700'
+      ctx.fill()
+    }
+
+    frame++
+    if (frame < path.length) {
+      animationId = requestAnimationFrame(animate)
+    } else {
+      // 动画结束：显示完整字母 1 秒后清除
+      ctx.clearRect(0, 0, 300, 300)
+      ctx.drawImage(off, 0, 0)
+      setTimeout(() => {
+        if (animating.value) {
+          clearCanvas()
+          animating.value = false
+          animationId = null
+        }
+      }, 1000)
+    }
+  }
+
+  animationId = requestAnimationFrame(animate)
 }
 </script>
