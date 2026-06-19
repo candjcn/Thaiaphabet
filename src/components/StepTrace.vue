@@ -97,6 +97,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import { strokePaths } from '../data/strokePaths.js'
 
 const props = defineProps({ lesson: Object })
 defineEmits(['complete'])
@@ -216,12 +217,10 @@ function markTraced() {
   }
 }
 
-function playStrokeAnimation() {
-  if (animating.value) return
-  animating.value = true
-  clearCanvas()
+// ── 笔顺动画核心 ──
 
-  // 1. 将字母渲染到离屏 Canvas
+// 渲染字母到离屏 Canvas，返回 { canvas, imgData, bbox }
+function renderOffscreen(char) {
   const off = document.createElement('canvas')
   off.width = 300
   off.height = 300
@@ -230,76 +229,96 @@ function playStrokeAnimation() {
   oc.textAlign = 'center'
   oc.textBaseline = 'middle'
   oc.fillStyle = '#6C63FF'
-  oc.fillText(currentLetter.value.char, 150, 160)
+  oc.fillText(char, 150, 160)
 
-  // 2. 提取字母骨架：按扫描线取每段笔画的中点
   const imgData = oc.getImageData(0, 0, 300, 300)
-  const isChar = (x, y) => {
-    if (x < 0 || x >= 300 || y < 0 || y >= 300) return false
-    return imgData.data[(y * 300 + x) * 4 + 3] > 50
-  }
+  const d = imgData.data
 
-  const skelPoints = []
-  for (let y = 0; y < 300; y += 2) {
-    let inRun = false
-    let runStart = 0
-    for (let x = 0; x <= 300; x++) {
-      const ic = x < 300 && isChar(x, y)
-      if (ic && !inRun) {
-        runStart = x
-        inRun = true
-      } else if (!ic && inRun) {
-        skelPoints.push({ x: Math.round((runStart + x - 1) / 2), y })
-        inRun = false
+  // 计算字母包围盒
+  let top = 300, bottom = 0, left = 300, right = 0
+  for (let y = 0; y < 300; y++) {
+    for (let x = 0; x < 300; x++) {
+      if (d[(y * 300 + x) * 4 + 3] > 50) {
+        if (y < top) top = y
+        if (y > bottom) bottom = y
+        if (x < left) left = x
+        if (x > right) right = x
       }
     }
   }
 
-  if (skelPoints.length === 0) {
-    animating.value = false
-    return
+  return {
+    canvas: off,
+    imgData,
+    bbox: { top, bottom, left, right, w: right - left, h: bottom - top },
+  }
+}
+
+// 将归一化坐标 (0~1) 映射到画布坐标，并吸附到最近的字母像素
+function mapAndSnap(normalizedPath, bbox, imgData) {
+  const d = imgData.data
+  const alpha = (x, y) => {
+    const ix = Math.round(x)
+    const iy = Math.round(y)
+    if (ix < 0 || ix >= 300 || iy < 0 || iy >= 300) return 0
+    return d[(iy * 300 + ix) * 4 + 3]
   }
 
-  // 3. 用最近邻排序连成路径，从最顶部开始（หัว 所在位置）
-  let startIdx = 0
-  for (let i = 1; i < skelPoints.length; i++) {
-    if (skelPoints[i].y < skelPoints[startIdx].y ||
-        (skelPoints[i].y === skelPoints[startIdx].y && skelPoints[i].x > skelPoints[startIdx].x)) {
-      startIdx = i
-    }
-  }
+  return normalizedPath.map(([nx, ny]) => {
+    // 映射到画布坐标
+    const cx = bbox.left + nx * bbox.w
+    const cy = bbox.top + ny * bbox.h
 
-  const ordered = []
-  const remaining = new Array(skelPoints.length).fill(true)
-  let cur = startIdx
-  remaining[cur] = false
-  ordered.push(skelPoints[cur])
+    // 在半径 20px 内搜索最近的字母像素
+    if (alpha(cx, cy) > 50) return { x: cx, y: cy }
 
-  for (let n = 1; n < skelPoints.length; n++) {
-    let bestIdx = -1
-    let bestDist = Infinity
-    for (let i = 0; i < skelPoints.length; i++) {
-      if (!remaining[i]) continue
-      const dx = skelPoints[i].x - skelPoints[cur].x
-      const dy = skelPoints[i].y - skelPoints[cur].y
-      const d = dx * dx + dy * dy
-      if (d < bestDist) {
-        bestDist = d
-        bestIdx = i
+    let bestX = cx, bestY = cy, bestDist = Infinity
+    const r = 20
+    for (let dy = -r; dy <= r; dy += 2) {
+      for (let dx = -r; dx <= r; dx += 2) {
+        if (alpha(cx + dx, cy + dy) > 50) {
+          const dist = dx * dx + dy * dy
+          if (dist < bestDist) {
+            bestDist = dist
+            bestX = cx + dx
+            bestY = cy + dy
+          }
+        }
       }
     }
-    if (bestIdx === -1) break
-    ordered.push(skelPoints[bestIdx])
-    remaining[bestIdx] = false
-    cur = bestIdx
+    return { x: bestX, y: bestY }
+  })
+}
+
+// Catmull-Rom 样条插值，生成平滑路径
+function interpolatePath(points, totalFrames) {
+  if (points.length < 2) return points
+  const result = []
+  const segments = points.length - 1
+  const framesPerSeg = Math.max(1, Math.ceil(totalFrames / segments))
+
+  for (let i = 0; i < segments; i++) {
+    const p0 = points[Math.max(0, i - 1)]
+    const p1 = points[i]
+    const p2 = points[i + 1]
+    const p3 = points[Math.min(points.length - 1, i + 2)]
+
+    for (let j = 0; j < framesPerSeg; j++) {
+      const t = j / framesPerSeg
+      const t2 = t * t
+      const t3 = t2 * t
+      result.push({
+        x: 0.5 * ((2 * p1.x) + (-p0.x + p2.x) * t + (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t2 + (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * t3),
+        y: 0.5 * ((2 * p1.y) + (-p0.y + p2.y) * t + (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * t2 + (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * t3),
+      })
+    }
   }
+  result.push(points[points.length - 1])
+  return result
+}
 
-  // 4. 下采样到 ~150 帧
-  const targetFrames = 150
-  const step = Math.max(1, Math.floor(ordered.length / targetFrames))
-  const path = ordered.filter((_, i) => i % step === 0)
-
-  // 5. 动画：发光小球沿骨架滑动 + 逐步显露字母
+// 执行动画帧循环
+function runAnimation(path, offCanvas) {
   let frame = 0
 
   const animate = () => {
@@ -307,7 +326,7 @@ function playStrokeAnimation() {
 
     // 底层：淡化的完整字母轮廓
     ctx.globalAlpha = 0.08
-    ctx.drawImage(off, 0, 0)
+    ctx.drawImage(offCanvas, 0, 0)
     ctx.globalAlpha = 1.0
 
     // 用累积圆形剪切区域逐步显露字母
@@ -318,13 +337,12 @@ function playStrokeAnimation() {
       ctx.arc(path[i].x, path[i].y, 16, 0, Math.PI * 2)
     }
     ctx.clip()
-    ctx.drawImage(off, 0, 0)
+    ctx.drawImage(offCanvas, 0, 0)
     ctx.restore()
 
     // 发光小球
     if (frame < path.length) {
       const p = path[frame]
-      // 外圈光晕
       const grad = ctx.createRadialGradient(p.x, p.y, 2, p.x, p.y, 16)
       grad.addColorStop(0, 'rgba(255, 215, 0, 0.9)')
       grad.addColorStop(0.5, 'rgba(255, 215, 0, 0.3)')
@@ -333,7 +351,6 @@ function playStrokeAnimation() {
       ctx.arc(p.x, p.y, 16, 0, Math.PI * 2)
       ctx.fillStyle = grad
       ctx.fill()
-      // 内核白点
       ctx.beginPath()
       ctx.arc(p.x, p.y, 4, 0, Math.PI * 2)
       ctx.fillStyle = '#FFD700'
@@ -344,9 +361,8 @@ function playStrokeAnimation() {
     if (frame < path.length) {
       animationId = requestAnimationFrame(animate)
     } else {
-      // 动画结束：显示完整字母 1 秒后清除
       ctx.clearRect(0, 0, 300, 300)
-      ctx.drawImage(off, 0, 0)
+      ctx.drawImage(offCanvas, 0, 0)
       setTimeout(() => {
         if (animating.value) {
           clearCanvas()
@@ -358,5 +374,71 @@ function playStrokeAnimation() {
   }
 
   animationId = requestAnimationFrame(animate)
+}
+
+function playStrokeAnimation() {
+  if (animating.value) return
+  animating.value = true
+  clearCanvas()
+
+  const char = currentLetter.value.char
+  const { canvas: off, imgData, bbox } = renderOffscreen(char)
+  const manualPath = strokePaths[char]
+
+  if (manualPath) {
+    // 手工笔顺：归一化坐标 → 画布坐标 → 吸附到字母像素 → 样条插值
+    const snapped = mapAndSnap(manualPath, bbox, imgData)
+    const smooth = interpolatePath(snapped, 150)
+    runAnimation(smooth, off)
+  } else {
+    // 无手工数据时回退：扫描线骨架 + 最近邻排序
+    const isCharPixel = (x, y) => {
+      if (x < 0 || x >= 300 || y < 0 || y >= 300) return false
+      return imgData.data[(y * 300 + x) * 4 + 3] > 50
+    }
+    const skelPoints = []
+    for (let y = 0; y < 300; y += 2) {
+      let inRun = false, runStart = 0
+      for (let x = 0; x <= 300; x++) {
+        const ic = x < 300 && isCharPixel(x, y)
+        if (ic && !inRun) { runStart = x; inRun = true }
+        else if (!ic && inRun) {
+          skelPoints.push({ x: Math.round((runStart + x - 1) / 2), y })
+          inRun = false
+        }
+      }
+    }
+    if (skelPoints.length === 0) { animating.value = false; return }
+
+    let startIdx = 0
+    for (let i = 1; i < skelPoints.length; i++) {
+      if (skelPoints[i].y < skelPoints[startIdx].y ||
+          (skelPoints[i].y === skelPoints[startIdx].y && skelPoints[i].x > skelPoints[startIdx].x)) {
+        startIdx = i
+      }
+    }
+    const ordered = []
+    const remaining = new Array(skelPoints.length).fill(true)
+    let cur = startIdx
+    remaining[cur] = false
+    ordered.push(skelPoints[cur])
+    for (let n = 1; n < skelPoints.length; n++) {
+      let bestIdx = -1, bestDist = Infinity
+      for (let i = 0; i < skelPoints.length; i++) {
+        if (!remaining[i]) continue
+        const dx = skelPoints[i].x - skelPoints[cur].x
+        const dy = skelPoints[i].y - skelPoints[cur].y
+        const d = dx * dx + dy * dy
+        if (d < bestDist) { bestDist = d; bestIdx = i }
+      }
+      if (bestIdx === -1) break
+      ordered.push(skelPoints[bestIdx])
+      remaining[bestIdx] = false
+      cur = bestIdx
+    }
+    const step = Math.max(1, Math.floor(ordered.length / 150))
+    const path = ordered.filter((_, i) => i % step === 0)
+    runAnimation(path, off)
+  }
 }
 </script>
