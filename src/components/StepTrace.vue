@@ -109,6 +109,12 @@ const animating = ref(false)
 let isDrawing = false
 let ctx = null
 let animationId = null
+let lastPos = null
+let lastWidth = 4
+
+// 笔画粗细范围
+const MIN_WIDTH = 2
+const MAX_WIDTH = 10
 
 const currentLetter = computed(() => props.lesson.consonants[currentLetterIndex.value])
 
@@ -126,7 +132,6 @@ function setupCanvas() {
   if (!ctx) return
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'
-  ctx.lineWidth = 4
   ctx.strokeStyle = '#6C63FF'
 }
 
@@ -138,25 +143,52 @@ function getPos(e) {
   }
 }
 
+// 根据压感/接触面积计算笔画宽度
+function getWidth(e) {
+  // 触控笔/手写笔：直接用压力值
+  if (e.pressure && e.pressure > 0 && e.pressure < 1) {
+    return MIN_WIDTH + e.pressure * (MAX_WIDTH - MIN_WIDTH)
+  }
+  // 手指触摸：用接触面积（width 通常 20~60+）
+  if (e.pointerType === 'touch' && e.width > 1) {
+    const normalized = Math.min(1, (e.width - 10) / 50)
+    return MIN_WIDTH + normalized * (MAX_WIDTH - MIN_WIDTH)
+  }
+  // 鼠标：固定中等粗细
+  return 4
+}
+
 function startDraw(e) {
   if (animating.value) return
   isDrawing = true
-  const pos = getPos(e)
-  ctx.beginPath()
-  ctx.moveTo(pos.x, pos.y)
+  lastPos = getPos(e)
+  lastWidth = getWidth(e)
   e.preventDefault()
 }
 
 function draw(e) {
   if (!isDrawing || animating.value) return
   const pos = getPos(e)
+  const targetWidth = getWidth(e)
+
+  // 平滑过渡，避免粗细突变
+  const width = lastWidth * 0.6 + targetWidth * 0.4
+
+  // 用两点之间的独立线段实现变宽笔画
+  ctx.beginPath()
+  ctx.lineWidth = width
+  ctx.moveTo(lastPos.x, lastPos.y)
   ctx.lineTo(pos.x, pos.y)
   ctx.stroke()
+
+  lastPos = pos
+  lastWidth = width
   e.preventDefault()
 }
 
 function endDraw() {
   isDrawing = false
+  lastPos = null
 }
 
 function clearCanvas() {
