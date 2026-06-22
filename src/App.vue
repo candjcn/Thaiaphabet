@@ -16,10 +16,6 @@
             <span>🔥</span>
             <span>{{ userData.streak }}天</span>
           </div>
-          <router-link to="/collection" class="text-sm text-(--color-primary) no-underline hover:underline">
-            藏书阁
-          </router-link>
-
           <!-- 用户头像 / 登录按钮 -->
           <div v-if="user" class="relative">
             <button @click="showMenu = !showMenu" class="w-8 h-8 rounded-full overflow-hidden border-2 border-(--color-primary)">
