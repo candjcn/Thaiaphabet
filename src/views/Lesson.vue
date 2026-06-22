@@ -72,6 +72,8 @@
         </div>
       </div>
     </div>
+    <!-- 登录提示 -->
+    <LoginPrompt v-if="showLoginPrompt" @close="showLoginPrompt = false" />
   </div>
 </template>
 
@@ -82,10 +84,12 @@ import { lessons } from '../data/lessons.js'
 import { storage } from '../engine/storage.js'
 import { srs } from '../engine/srs.js'
 import { audio } from '../engine/audio.js'
+import { userAuth } from '../engine/auth.js'
 import StepExplore from '../components/StepExplore.vue'
 // import StepTrace from '../components/StepTrace.vue'  // 笔顺功能暂时隐藏
 import StepSynthesize from '../components/StepSynthesize.vue'
 import StepQuiz from '../components/StepQuiz.vue'
+import LoginPrompt from '../components/LoginPrompt.vue'
 
 const props = defineProps({ id: String })
 const router = useRouter()
@@ -96,6 +100,7 @@ const showResult = ref(false)
 const resultStars = ref(0)
 const resultXP = ref(0)
 const resultAccuracy = ref(0)
+const showLoginPrompt = ref(false)
 
 const stepTitles = ['📖 字母探索', '🔤 单词句子合成', '🎯 闯关测试']
 
@@ -151,6 +156,11 @@ function onQuizComplete({ correctCount, totalCount }) {
   })
 
   showResult.value = true
+
+  // 完成 2 课后未登录，提示登录
+  if (userAuth.shouldPromptLogin()) {
+    setTimeout(() => { showLoginPrompt.value = true }, 1500)
+  }
 }
 
 function goHome() {

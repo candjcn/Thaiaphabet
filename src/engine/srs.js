@@ -24,7 +24,7 @@ export const srs = {
         nextReview: Date.now() + INTERVALS[0],
         lastReview: Date.now(),
       }
-      localStorage.setItem('thai_alphabet_data', JSON.stringify(data))
+      storage.save(data)
     }
   },
 
@@ -37,7 +37,7 @@ export const srs = {
     item.intervalIndex = Math.min(item.intervalIndex + 1, INTERVALS.length - 1)
     item.nextReview = Date.now() + INTERVALS[item.intervalIndex]
     item.lastReview = Date.now()
-    localStorage.setItem('thai_alphabet_data', JSON.stringify(data))
+    storage.save(data)
   },
 
   // 回答错误
@@ -49,7 +49,7 @@ export const srs = {
     item.intervalIndex = Math.max(0, item.intervalIndex - 2)
     item.nextReview = Date.now() + INTERVALS[item.intervalIndex]
     item.lastReview = Date.now()
-    localStorage.setItem('thai_alphabet_data', JSON.stringify(data))
+    storage.save(data)
   },
 
   // 获取需要复习的项目

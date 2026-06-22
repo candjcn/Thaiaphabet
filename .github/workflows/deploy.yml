@@ -29,6 +29,13 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          VITE_FIREBASE_API_KEY: AIzaSyBOCdtQzdU0o4zj_wzAJjGnItgJCJsOuS0
+          VITE_FIREBASE_AUTH_DOMAIN: thaiaphabet.firebaseapp.com
+          VITE_FIREBASE_PROJECT_ID: thaiaphabet
+          VITE_FIREBASE_STORAGE_BUCKET: thaiaphabet.firebasestorage.app
+          VITE_FIREBASE_MESSAGING_SENDER_ID: "171278666463"
+          VITE_FIREBASE_APP_ID: "1:171278666463:web:87efd9c940d2e609faf76a"
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

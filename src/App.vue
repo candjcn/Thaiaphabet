@@ -19,6 +19,25 @@
           <router-link to="/collection" class="text-sm text-(--color-primary) no-underline hover:underline">
             藏书阁
           </router-link>
+
+          <!-- 用户头像 / 登录按钮 -->
+          <div v-if="user" class="relative">
+            <button @click="showMenu = !showMenu" class="w-8 h-8 rounded-full overflow-hidden border-2 border-(--color-primary)">
+              <img :src="user.photoURL" :alt="user.displayName" class="w-full h-full object-cover" referrerpolicy="no-referrer" />
+            </button>
+            <div v-if="showMenu" class="absolute right-0 top-10 bg-white shadow-lg rounded-xl p-3 w-48 border border-gray-100">
+              <p class="text-sm font-medium truncate">{{ user.displayName }}</p>
+              <p class="text-xs text-(--color-text-secondary) truncate mb-2">{{ user.email }}</p>
+              <button @click="logout" class="text-sm text-red-500 hover:text-red-600">退出登录</button>
+            </div>
+          </div>
+          <button
+            v-else
+            @click="showLogin = true"
+            class="text-sm text-(--color-primary) hover:underline"
+          >
+            登录
+          </button>
         </div>
       </div>
     </nav>
@@ -27,17 +46,36 @@
     <main class="max-w-4xl mx-auto px-4 py-6">
       <router-view :key="$route.fullPath" />
     </main>
+
+    <!-- 登录弹窗 -->
+    <LoginPrompt v-if="showLogin" @close="showLogin = false" />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { storage } from './engine/storage.js'
+import { userAuth } from './engine/auth.js'
+import LoginPrompt from './components/LoginPrompt.vue'
 
 const userData = ref(storage.getData())
+const showLogin = ref(false)
+const showMenu = ref(false)
+const user = userAuth.user
+
+// 登录/登出后刷新数据
+watch(user, () => {
+  userData.value = storage.getData()
+  showMenu.value = false
+})
 
 onMounted(() => {
   storage.updateStreak()
   userData.value = storage.getData()
 })
+
+async function logout() {
+  await userAuth.signOut()
+  showMenu.value = false
+}
 </script>
