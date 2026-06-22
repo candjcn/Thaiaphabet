@@ -1,16 +1,32 @@
 // 音频引擎
-// 辅音字母使用本地录音文件（public/audio/），其他文本使用 Google Translate TTS
+// 辅音和元音使用本地录音文件（public/audio/），其他文本使用 Google Translate TTS
 
 let currentAudio = null
 
-// 全部44个泰语辅音字符集合（用于检测是否有本地录音）
+// 全部44个泰语辅音字符集合
 const CONSONANTS = new Set('กขฃคฅฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรลวศษสหฬอฮ')
+
+// 元音 char（课程中使用的格式）→ 音频文件名的映射
+// 音频文件名使用 อ 作为占位辅音（标准泰语元音发音方式）
+const VOWEL_MAP = {
+  // 单个元音符号（上/下标）
+  'า': 'อา', 'ี': 'อี', 'ู': 'อู', 'ิ': 'อิ', 'ึ': 'อึ', 'ุ': 'อุ',
+  // 前置元音（用 - 代表辅音位置）
+  'เ-': 'เอ', 'แ-': 'แอ', 'โ-': 'โอ', 'ไ-': 'ไอ', 'ใ-': 'ใอ',
+  // 后置元音
+  '-ะ': 'อะ', '-อ': 'ออ', '-ือ': 'อือ',
+  // 复合/包围元音
+  'อำ': 'อํา', 'เ-า': 'เอา', 'เ-อ': 'เออ', 'เ-ีย': 'เอีย',
+  '-ัว': 'อัว', 'เ-ือ': 'เอือ',
+  // 短元音
+  'แ-ะ': 'แอะ', 'โ-ะ': 'โอะ', 'เ-าะ': 'เอาะ', 'เ-อะ': 'เออะ',
+}
 
 // 获取 base path（兼容 GitHub Pages 子路径部署）
 const BASE = import.meta.env.BASE_URL || '/'
 
-function getLocalAudioUrl(char) {
-  return `${BASE}audio/${encodeURIComponent(char)}.mp3`
+function getLocalAudioUrl(filename) {
+  return `${BASE}audio/${encodeURIComponent(filename)}.mp3`
 }
 
 function getTTSUrl(text, lang = 'th') {
@@ -18,21 +34,22 @@ function getTTSUrl(text, lang = 'th') {
   return `https://translate.google.com/translate_tts?ie=UTF-8&tl=${lang}&client=tw-ob&q=${encoded}`
 }
 
-// 检查文本是否对应一个辅音的发音名称
-// 匹配：单个辅音字符 "ม"，或 fullName 格式 "มอ ม้า"（辅音 + อ + 空格 + 词）
-function getConsonantChar(text) {
+// 检查文本是否有本地录音，返回音频文件名（不含 .mp3）或 null
+function getLocalAudioName(text) {
   if (!text) return null
-  // 单个辅音字符
+  // 辅音：单个字符
   if (text.length === 1 && CONSONANTS.has(text)) return text
-  // fullName 格式如 "มอ ม้า"（第1个字符是辅音，第2个字符是 อ，第3个是空格）
+  // 辅音：fullName 格式 "มอ ม้า"
   if (text.length >= 4 && CONSONANTS.has(text.charAt(0)) && text.charAt(1) === 'อ' && text.charAt(2) === ' ') {
     return text.charAt(0)
   }
+  // 元音：查表
+  if (VOWEL_MAP[text]) return VOWEL_MAP[text]
   return null
 }
 
 export const audio = {
-  // 播放泰语文本：辅音用本地录音，其余用 Google TTS
+  // 播放泰语文本：辅音/元音用本地录音，其余用 Google TTS
   speakThai(text) {
     if (!text) return
     if (currentAudio) {
@@ -40,13 +57,11 @@ export const audio = {
       currentAudio = null
     }
 
-    const consonant = getConsonantChar(text)
-    if (consonant) {
-      // 使用本地辅音录音
-      const a = new Audio(getLocalAudioUrl(consonant))
+    const localName = getLocalAudioName(text)
+    if (localName) {
+      const a = new Audio(getLocalAudioUrl(localName))
       currentAudio = a
       a.play().catch(() => {
-        // 本地文件失败则回退到 Google TTS
         this._playGoogleTTS(text)
       })
     } else {
@@ -76,10 +91,10 @@ export const audio = {
 
   // 预加载音频
   preload(text) {
-    const consonant = getConsonantChar(text)
+    const localName = getLocalAudioName(text)
     const a = new Audio()
     a.preload = 'auto'
-    a.src = consonant ? getLocalAudioUrl(consonant) : getTTSUrl(text)
+    a.src = localName ? getLocalAudioUrl(localName) : getTTSUrl(text)
   },
 
   // 播放音效（使用 AudioContext 生成简单音效）
