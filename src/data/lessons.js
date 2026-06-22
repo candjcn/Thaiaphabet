@@ -255,8 +255,8 @@ export const lessons = [
   // ════════════════════════════════════════
   {
     id: 'L11',
-    title: '第十一课：声调全掌握',
-    subtitle: '学会全部四个声调符号',
+    title: '第十一课：亲戚与桌子',
+    subtitle: '学习辅音 ญ ณ ฐ，认识声调符号 ๊ ๋',
     consonants: [
       { char: 'ญ', name: 'Yo', fullName: 'ญอ หญิง', meaning: '女人', class: 'low' },
       { char: 'ณ', name: 'No', fullName: 'ณอ เณร', meaning: '沙弥', class: 'low' },
