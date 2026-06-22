@@ -373,6 +373,110 @@ export const lessons = [
       { thai: 'ดู จุฬา', meaning: '看风筝', words: ['ดู', 'จุฬา'] },
     ],
   },
+
+  // ════════════════════════════════════════
+  // 第六阶段：声调专题 (L16-L19)
+  // ════════════════════════════════════════
+  {
+    id: 'L16',
+    title: '声调一：五声初识',
+    subtitle: '认识泰语 5 个声调，感受声调差异',
+    consonants: [],
+    vowels: [],
+    toneExamples: [
+      { syllable: 'กา', tone: '平声', toneNameThai: 'สามัญ', description: '中平调，声调平稳不变' },
+      { syllable: 'ก่า', tone: '低声', toneNameThai: 'เอก', description: '低平调，声调低沉' },
+      { syllable: 'ก้า', tone: '降声', toneNameThai: 'โท', description: '高降调，从高往低降' },
+      { syllable: 'ก๊า', tone: '高声', toneNameThai: 'ตรี', description: '高平调，声调高扬' },
+      { syllable: 'ก๋า', tone: '升声', toneNameThai: 'จัตวา', description: '低升调，从低往高升' },
+    ],
+    words: [
+      { thai: 'กา', meaning: '乌鸦', parts: ['ก', 'า'], phonetic: 'kaa', tone: '平声' },
+      { thai: 'ป่า', meaning: '森林', parts: ['ป', '่', 'า'], phonetic: 'pàa', tone: '低声' },
+      { thai: 'ข้าว', meaning: '米饭', parts: ['ข', '้', 'า', 'ว'], phonetic: 'khâaw', tone: '降声' },
+      { thai: 'น้ำ', meaning: '水', parts: ['น', '้', 'ำ'], phonetic: 'nám', tone: '高声' },
+      { thai: 'ขา', meaning: '腿', parts: ['ข', 'า'], phonetic: 'khǎa', tone: '升声' },
+    ],
+    sentences: [
+      { thai: 'มี น้ำ', meaning: '有水', words: ['มี', 'น้ำ'] },
+      { thai: 'ซื้อ ข้าว', meaning: '买米饭', words: ['ซื้อ', 'ข้าว'] },
+    ],
+  },
+  {
+    id: 'L17',
+    title: '声调二：中辅音规则',
+    subtitle: '中辅音 + 4 个声调符号，最规则的变化',
+    consonants: [],
+    vowels: [],
+    toneExamples: [
+      { syllable: 'ปา', tone: '平声', description: '中辅音 + 无符号 = 平声' },
+      { syllable: 'ป่า', tone: '低声', description: '中辅音 + ่ = 低声' },
+      { syllable: 'ป้า', tone: '降声', description: '中辅音 + ้ = 降声' },
+      { syllable: 'โต๊ะ', tone: '高声', description: '中辅音 + ๊ = 高声' },
+      { syllable: 'จ๋า', tone: '升声', description: '中辅音 + ๋ = 升声' },
+    ],
+    words: [
+      { thai: 'ปา', meaning: '扔', parts: ['ป', 'า'], phonetic: 'paa', tone: '平声' },
+      { thai: 'ป่า', meaning: '森林', parts: ['ป', '่', 'า'], phonetic: 'pàa', tone: '低声' },
+      { thai: 'ป้า', meaning: '姑姑', parts: ['ป', '้', 'า'], phonetic: 'pâa', tone: '降声' },
+      { thai: 'โต๊ะ', meaning: '桌子', parts: ['โ', 'ต', '๊', 'ะ'], phonetic: 'tó', tone: '高声' },
+      { thai: 'จ๋า', meaning: '是的(语气词)', parts: ['จ', '๋', 'า'], phonetic: 'jǎa', tone: '升声' },
+    ],
+    sentences: [
+      { thai: 'ป้า มา', meaning: '姑姑来了', words: ['ป้า', 'มา'] },
+      { thai: 'ดู โต๊ะ', meaning: '看桌子', words: ['ดู', 'โต๊ะ'] },
+    ],
+  },
+  {
+    id: 'L18',
+    title: '声调三：高低辅音对比',
+    subtitle: '同样的符号 + 不同辅音类别 = 不同声调',
+    consonants: [],
+    vowels: [],
+    toneExamples: [
+      { syllable: 'ข่า', tone: '低声', description: '高辅音 + ่ = 低声' },
+      { syllable: 'ค่า', tone: '降声', description: '低辅音 + ่ = 降声' },
+      { syllable: 'ข้าว', tone: '降声', description: '高辅音 + ้ = 降声' },
+      { syllable: 'ค้า', tone: '高声', description: '低辅音 + ้ = 高声' },
+    ],
+    words: [
+      { thai: 'ข่า', meaning: '南姜', parts: ['ข', '่', 'า'], phonetic: 'khàa', tone: '低声' },
+      { thai: 'ค่า', meaning: '价值', parts: ['ค', '่', 'า'], phonetic: 'khâa', tone: '降声' },
+      { thai: 'ค้า', meaning: '经商', parts: ['ค', '้', 'า'], phonetic: 'kháa', tone: '高声' },
+      { thai: 'สี่', meaning: '四', parts: ['ส', 'ี', '่'], phonetic: 'sìi', tone: '低声' },
+      { thai: 'ห้า', meaning: '五', parts: ['ห', '้', 'า'], phonetic: 'hâa', tone: '降声' },
+    ],
+    sentences: [
+      { thai: 'ข้าว มี ค่า', meaning: '米饭有价值', words: ['ข้าว', 'มี', 'ค่า'] },
+      { thai: 'ซื้อ ข่า', meaning: '买南姜', words: ['ซื้อ', 'ข่า'] },
+    ],
+  },
+  {
+    id: 'L19',
+    title: '声调四：活死音节',
+    subtitle: '无声调符号时，音节类型决定声调',
+    consonants: [],
+    vowels: [],
+    toneExamples: [
+      { syllable: 'กา', tone: '平声', description: '中辅音 + 活音节 = 平声' },
+      { syllable: 'กบ', tone: '低声', description: '中辅音 + 死音节 = 低声' },
+      { syllable: 'ขา', tone: '升声', description: '高辅音 + 活音节 = 升声' },
+      { syllable: 'ผัก', tone: '低声', description: '高辅音 + 死音节 = 低声' },
+      { syllable: 'นา', tone: '平声', description: '低辅音 + 活音节 = 平声' },
+      { syllable: 'นก', tone: '高声', description: '低辅音 + 死音节(短) = 高声' },
+    ],
+    words: [
+      { thai: 'กบ', meaning: '青蛙', parts: ['ก', 'บ'], phonetic: 'kòp', tone: '低声' },
+      { thai: 'นก', meaning: '鸟', parts: ['น', 'ก'], phonetic: 'nók', tone: '高声' },
+      { thai: 'ผัก', meaning: '蔬菜', parts: ['ผ', 'ั', 'ก'], phonetic: 'phàk', tone: '低声' },
+      { thai: 'มาก', meaning: '很多', parts: ['ม', 'า', 'ก'], phonetic: 'mâak', tone: '降声' },
+      { thai: 'นา', meaning: '田', parts: ['น', 'า'], phonetic: 'naa', tone: '平声' },
+    ],
+    sentences: [
+      { thai: 'ดู นก', meaning: '看鸟', words: ['ดู', 'นก'] },
+      { thai: 'ซื้อ ผัก มาก', meaning: '买很多蔬菜', words: ['ซื้อ', 'ผัก', 'มาก'] },
+    ],
+  },
 ]
 
 // 获取所有已解锁课程中学过的字母（用于生成干扰项）

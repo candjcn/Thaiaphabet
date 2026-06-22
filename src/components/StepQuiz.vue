@@ -51,6 +51,39 @@
           </div>
         </template>
 
+        <!-- 听音辨调题 -->
+        <template v-else-if="questions[currentQ].type === 'tone'">
+          <p class="text-(--color-text-secondary) mb-2">听音辨调：这个词是什么声调？</p>
+          <div class="thai text-4xl mb-2 text-(--color-primary)">{{ questions[currentQ].word }}</div>
+          <button
+            @click="playQuestionAudio"
+            class="mb-6 w-16 h-16 rounded-full bg-purple-100 text-3xl flex items-center justify-center mx-auto hover:bg-purple-200 transition"
+          >
+            🔊
+          </button>
+
+          <div class="grid grid-cols-1 gap-3 max-w-sm mx-auto">
+            <button
+              v-for="(opt, oi) in questions[currentQ].options"
+              :key="oi"
+              @click="selectAnswer(oi)"
+              :disabled="answered"
+              :class="[
+                'p-3 rounded-xl border-2 text-lg transition-all',
+                !answered
+                  ? 'border-gray-200 bg-white hover:border-(--color-primary) hover:bg-purple-50'
+                  : oi === questions[currentQ].correctIndex
+                    ? 'border-green-500 bg-green-50'
+                    : selectedOption === oi
+                      ? 'border-red-400 bg-red-50'
+                      : 'border-gray-200 bg-gray-50 opacity-50'
+              ]"
+            >
+              {{ opt }}
+            </button>
+          </div>
+        </template>
+
         <!-- 词义选择题 -->
         <template v-else-if="questions[currentQ].type === 'meaning'">
           <p class="text-(--color-text-secondary) mb-2">这个词是什么意思？</p>
@@ -110,18 +143,22 @@ const answered = ref(false)
 const selectedOption = ref(-1)
 const answers = ref([])
 
+const TONE_NAMES = ['平声', '低声', '降声', '高声', '升声']
+
 onMounted(() => {
-  // 预加载所有字母发音
-  props.lesson.consonants.forEach(c => audio.preload(c.fullName || c.char))
+  if (props.lesson.consonants.length > 0) {
+    props.lesson.consonants.forEach(c => audio.preload(c.fullName || c.char))
+  }
   props.lesson.words.forEach(w => audio.preload(w.thai))
   generateQuestions()
-  // 自动播放第一题
   setTimeout(playQuestionAudio, 500)
 })
 
 function generateQuestions() {
   const qs = []
   const consonants = props.lesson.consonants
+  const words = props.lesson.words
+  const hasTones = words.some(w => w.tone)
 
   // 听音选字题（每个辅音一题）
   consonants.forEach(c => {
@@ -137,13 +174,26 @@ function generateQuestions() {
     })
   })
 
-  // 词义选择题（每个词一题）
-  const words = props.lesson.words
-  const allMeanings = words.map(w => w.meaning)
+  // 听音辨调题（声调课程专用）
+  if (hasTones) {
+    words.forEach(w => {
+      if (!w.tone) return
+      const wrongTones = TONE_NAMES.filter(t => t !== w.tone)
+      const options = shuffle([w.tone, ...shuffle(wrongTones).slice(0, 2)])
+      qs.push({
+        type: 'tone',
+        word: w.thai,
+        audio: w.thai,
+        options,
+        correctIndex: options.indexOf(w.tone),
+      })
+    })
+  }
 
+  // 词义选择题（每个词一题）
+  const allMeanings = words.map(w => w.meaning)
   words.forEach(w => {
     let wrongMeanings = allMeanings.filter(m => m !== w.meaning)
-    // 如果干扰项不够，从通用词库补充
     const fallbackMeanings = ['来', '看', '好', '有', '大', '小', '多', '少', '走', '吃']
     while (wrongMeanings.length < 2) {
       const fb = fallbackMeanings.find(m => m !== w.meaning && !wrongMeanings.includes(m))
@@ -164,7 +214,7 @@ function generateQuestions() {
 
 function playQuestionAudio() {
   const q = questions.value[currentQ.value]
-  if (q?.type === 'listen') {
+  if (q?.audio) {
     audio.speakThai(q.audio)
   }
 }
