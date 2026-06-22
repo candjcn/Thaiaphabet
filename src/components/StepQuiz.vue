@@ -142,7 +142,14 @@ function generateQuestions() {
   const allMeanings = words.map(w => w.meaning)
 
   words.forEach(w => {
-    const wrongMeanings = allMeanings.filter(m => m !== w.meaning)
+    let wrongMeanings = allMeanings.filter(m => m !== w.meaning)
+    // 如果干扰项不够，从通用词库补充
+    const fallbackMeanings = ['来', '看', '好', '有', '大', '小', '多', '少', '走', '吃']
+    while (wrongMeanings.length < 2) {
+      const fb = fallbackMeanings.find(m => m !== w.meaning && !wrongMeanings.includes(m))
+      if (fb) wrongMeanings.push(fb)
+      else break
+    }
     const options = shuffle([w.meaning, ...shuffle(wrongMeanings).slice(0, 2)])
     qs.push({
       type: 'meaning',

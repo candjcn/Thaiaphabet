@@ -125,6 +125,10 @@ function formatTime(seconds) {
 function nextStep() {
   if (currentStep.value < 3) {
     currentStep.value++
+    // 无辅音课程跳过笔顺临摹步骤
+    if (currentStep.value === 1 && lesson.value.consonants.length === 0) {
+      currentStep.value++
+    }
   }
 }
 
