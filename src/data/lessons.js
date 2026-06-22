@@ -76,8 +76,8 @@ export const lessons = [
   },
   {
     id: 'L4',
-    title: '第四课：声调入门',
-    subtitle: '引入最核心的声调符号及中辅音',
+    title: '第四课：鸡与大象',
+    subtitle: '学习中低辅音 ก อ ช，初识声调符号 ่',
     consonants: [
       { char: 'ก', name: 'Ko', fullName: 'กอ ไก่', meaning: '鸡', class: 'mid' },
       { char: 'อ', name: 'O', fullName: 'ออ อ่าง', meaning: '盆', class: 'mid' },
