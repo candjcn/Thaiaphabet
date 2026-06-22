@@ -1,5 +1,5 @@
 // 音频引擎
-// 辅音和元音使用本地录音文件（public/audio/），其他文本使用 Google Translate TTS
+// 所有泰语发音（辅音、元音、单词、句子）均使用本地 WAV 录音文件
 
 let currentAudio = null
 
@@ -7,49 +7,38 @@ let currentAudio = null
 const CONSONANTS = new Set('กขฃคฅฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรลวศษสหฬอฮ')
 
 // 元音 char（课程中使用的格式）→ 音频文件名的映射
-// 音频文件名使用 อ 作为占位辅音（标准泰语元音发音方式）
 const VOWEL_MAP = {
-  // 单个元音符号（上/下标）
   'า': 'อา', 'ี': 'อี', 'ู': 'อู', 'ิ': 'อิ', 'ึ': 'อึ', 'ุ': 'อุ',
-  // 前置元音（用 - 代表辅音位置）
   'เ-': 'เอ', 'แ-': 'แอ', 'โ-': 'โอ', 'ไ-': 'ไอ', 'ใ-': 'ใอ',
-  // 后置元音
   '-ะ': 'อะ', '-อ': 'ออ', '-ือ': 'อือ',
-  // 复合/包围元音
   'อำ': 'อํา', 'เ-า': 'เอา', 'เ-อ': 'เออ', 'เ-ีย': 'เอีย',
   '-ัว': 'อัว', 'เ-ือ': 'เอือ',
-  // 短元音
   'แ-ะ': 'แอะ', 'โ-ะ': 'โอะ', 'เ-าะ': 'เอาะ', 'เ-อะ': 'เออะ',
 }
 
-// 获取 base path（兼容 GitHub Pages 子路径部署）
 const BASE = import.meta.env.BASE_URL || '/'
 
 function getLocalAudioUrl(filename) {
   return `${BASE}audio/${encodeURIComponent(filename)}.wav`
 }
 
-function getTTSUrl(text, lang = 'th') {
-  const encoded = encodeURIComponent(text)
-  return `https://translate.google.com/translate_tts?ie=UTF-8&tl=${lang}&client=tw-ob&q=${encoded}`
-}
-
-// 检查文本是否有本地录音，返回音频文件名（不含 .mp3）或 null
+// 获取本地音频文件名
 function getLocalAudioName(text) {
   if (!text) return null
   // 辅音：单个字符
   if (text.length === 1 && CONSONANTS.has(text)) return text
-  // 辅音：fullName 格式 "มอ ม้า"
+  // 辅音：fullName 格式 "มอ ม้า" → 取首字符
   if (text.length >= 4 && CONSONANTS.has(text.charAt(0)) && text.charAt(1) === 'อ' && text.charAt(2) === ' ') {
     return text.charAt(0)
   }
   // 元音：查表
   if (VOWEL_MAP[text]) return VOWEL_MAP[text]
-  return null
+  // 单词和句子：直接用文本作为文件名
+  return text
 }
 
 export const audio = {
-  // 播放泰语文本：辅音/元音用本地录音，其余用 Google TTS
+  // 播放泰语文本：全部使用本地音频文件
   speakThai(text) {
     if (!text) return
     if (currentAudio) {
@@ -58,22 +47,10 @@ export const audio = {
     }
 
     const localName = getLocalAudioName(text)
-    if (localName) {
-      const a = new Audio(getLocalAudioUrl(localName))
-      currentAudio = a
-      a.play().catch(() => {
-        this._playGoogleTTS(text)
-      })
-    } else {
-      this._playGoogleTTS(text)
-    }
-  },
-
-  _playGoogleTTS(text) {
-    const a = new Audio(getTTSUrl(text))
-    a.playbackRate = 0.9
+    const a = new Audio(getLocalAudioUrl(localName))
     currentAudio = a
     a.play().catch(() => {
+      // 本地文件不存在时回退到浏览器 TTS
       this._fallbackSpeak(text)
     })
   },
@@ -94,10 +71,10 @@ export const audio = {
     const localName = getLocalAudioName(text)
     const a = new Audio()
     a.preload = 'auto'
-    a.src = localName ? getLocalAudioUrl(localName) : getTTSUrl(text)
+    a.src = getLocalAudioUrl(localName)
   },
 
-  // 播放音效（使用 AudioContext 生成简单音效）
+  // 播放音效
   playCorrect() {
     this._playTone([523.25, 659.25, 783.99], 0.15)
   },
