@@ -26,7 +26,7 @@ const VOWEL_MAP = {
 const BASE = import.meta.env.BASE_URL || '/'
 
 function getLocalAudioUrl(filename) {
-  return `${BASE}audio/${encodeURIComponent(filename)}.mp3`
+  return `${BASE}audio/${encodeURIComponent(filename)}.wav`
 }
 
 function getTTSUrl(text, lang = 'th') {
