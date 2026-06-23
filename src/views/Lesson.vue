@@ -7,7 +7,7 @@
           ← 返回
         </button>
         <span class="text-sm text-(--color-text-secondary)">
-          步骤 {{ currentStep + 1 }} / 3
+          步骤 {{ currentStep + 1 }} / {{ totalSteps }}
         </span>
         <span class="text-sm font-mono text-(--color-text-secondary)">
           ⏱️ {{ formatTime(elapsed) }}
@@ -16,7 +16,7 @@
       <div class="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
         <div
           class="h-full bg-(--color-primary) rounded-full transition-all duration-500"
-          :style="{ width: ((currentStep + 1) / 3 * 100) + '%' }"
+          :style="{ width: ((currentStep + 1) / totalSteps * 100) + '%' }"
         ></div>
       </div>
     </div>
@@ -24,22 +24,27 @@
     <!-- 步骤标题 -->
     <div class="text-center mb-6">
       <h1 class="text-2xl font-bold">{{ lesson.title }}</h1>
-      <p class="text-(--color-text-secondary) mt-1">{{ stepTitles[currentStep] }}</p>
+      <p class="text-(--color-text-secondary) mt-1">{{ steps[currentStep] }}</p>
     </div>
 
     <!-- 步骤内容 -->
     <StepExplore
-      v-if="currentStep === 0"
+      v-if="currentStepName === 'explore'"
+      :lesson="lesson"
+      @complete="nextStep"
+    />
+    <StepTrace
+      v-else-if="currentStepName === 'trace'"
       :lesson="lesson"
       @complete="nextStep"
     />
     <StepSynthesize
-      v-else-if="currentStep === 1"
+      v-else-if="currentStepName === 'synthesize'"
       :lesson="lesson"
       @complete="nextStep"
     />
     <StepQuiz
-      v-else-if="currentStep === 2"
+      v-else-if="currentStepName === 'quiz'"
       :lesson="lesson"
       @complete="onQuizComplete"
     />
@@ -86,7 +91,7 @@ import { srs } from '../engine/srs.js'
 import { audio } from '../engine/audio.js'
 import { userAuth } from '../engine/auth.js'
 import StepExplore from '../components/StepExplore.vue'
-// import StepTrace from '../components/StepTrace.vue'  // 笔顺功能暂时隐藏
+import StepTrace from '../components/StepTrace.vue'
 import StepSynthesize from '../components/StepSynthesize.vue'
 import StepQuiz from '../components/StepQuiz.vue'
 import LoginPrompt from '../components/LoginPrompt.vue'
@@ -102,7 +107,22 @@ const resultXP = ref(0)
 const resultAccuracy = ref(0)
 const showLoginPrompt = ref(false)
 
-const stepTitles = ['📖 字母探索', '🔤 单词句子合成', '🎯 闯关测试']
+// 有辅音的课程包含书写练习步骤，否则跳过
+const hasTrace = computed(() => lesson.value && lesson.value.consonants && lesson.value.consonants.length > 0)
+const steps = computed(() => {
+  if (hasTrace.value) {
+    return ['📖 字母探索', '✍️ 书写练习', '🔤 单词句子合成', '🎯 闯关测试']
+  }
+  return ['📖 字母探索', '🔤 单词句子合成', '🎯 闯关测试']
+})
+const totalSteps = computed(() => steps.value.length)
+const stepSequence = computed(() => {
+  if (hasTrace.value) {
+    return ['explore', 'trace', 'synthesize', 'quiz']
+  }
+  return ['explore', 'synthesize', 'quiz']
+})
+const currentStepName = computed(() => stepSequence.value[currentStep.value])
 
 // 计时器
 const elapsed = ref(0)
@@ -123,7 +143,7 @@ function formatTime(seconds) {
 }
 
 function nextStep() {
-  if (currentStep.value < 2) {
+  if (currentStep.value < totalSteps.value - 1) {
     currentStep.value++
   }
 }

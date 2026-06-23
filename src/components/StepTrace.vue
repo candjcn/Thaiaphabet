@@ -54,6 +54,8 @@
       <button @click="showGuide = !showGuide" class="px-4 py-2 bg-gray-100 rounded-lg text-sm hover:bg-gray-200 transition">
         {{ showGuide ? '👁️ 隐藏引导' : '👁️‍🗨️ 显示引导' }}
       </button>
+      <!-- 笔顺动画按钮暂时隐藏，部分笔画有误 -->
+      <!--
       <button
         @click="playStrokeAnimation"
         :disabled="animating"
@@ -66,6 +68,7 @@
       >
         {{ animating ? '⏳ 播放中...' : '▶️ 播放笔顺' }}
       </button>
+      -->
     </div>
 
     <!-- 标记已练习 + 继续 -->
